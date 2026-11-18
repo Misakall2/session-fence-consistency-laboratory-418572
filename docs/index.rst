@@ -84,5 +84,6 @@ See the :doc:`/model/spec` of what is required from the model passed to :doc:`/a
    :hidden:
 
    misc/extension-grants
+   misc/token-families
    misc/migrating-v2-to-v3
 

@@ -45,5 +45,7 @@ tramp
 *.pfx
 *.jks
 *credentials*
+!lib/grant-types/client-credentials-grant-type.js
+!test/**/client-credentials-grant-type*_test.js
 *.token
 *.secret

@@ -33,3 +33,16 @@ exports.UnauthorizedRequestError = require('./lib/errors/unauthorized-request-er
 exports.UnsupportedGrantTypeError = require('./lib/errors/unsupported-grant-type-error');
 exports.UnsupportedResponseTypeError = require('./lib/errors/unsupported-response-type-error');
 
+/**
+ * Export the token-family fence subsystem: the single authoritative store for
+ * tokens and their revocation markers, the centralized revocation decision,
+ * and a model adapter that routes refresh exchange and access token
+ * validation through it.
+ */
+
+exports.TokenFence = require('./lib/token-fence');
+exports.TokenFenceStore = require('./lib/token-fence/token-fence-store');
+exports.TokenFenceError = require('./lib/token-fence/token-fence-error');
+exports.FenceModelAdapter = require('./lib/token-fence/fence-model-adapter');
+exports.tokenRevocation = require('./lib/utils/token-revocation');
+

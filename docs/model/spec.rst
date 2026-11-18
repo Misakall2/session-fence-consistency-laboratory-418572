@@ -208,6 +208,36 @@ An ``Object`` representing the access token and associated data.
 
 ``token.client`` and ``token.user`` can carry additional properties that will be ignored by *oauth2-server*.
 
+**Revocation markers:**
+
+An access token returned by ``getAccessToken()`` may carry a revocation marker.
+It is read at the single validation entry point, before the token can reach
+the scope check or the response, and an unreadable marker is treated exactly
+like a revoked one. The following marker shapes are recognized:
+
++---------------------------------+--------+-----------------------------------------------------------+
+| Name                            | Type   | Description                                               |
++=================================+========+===========================================================+
+| [token.revoked]                 | Bool   | ``true`` if this token was revoked.                       |
++---------------------------------+--------+-----------------------------------------------------------+
+| [token.familyRevoked]           | Bool   | ``true`` if the token's family was revoked.               |
++---------------------------------+--------+-----------------------------------------------------------+
+| [token.family]                  | Object | The token's family record; ``family.revoked === true``    |
+|                                 |        | revokes every token in the family.                        |
++---------------------------------+--------+-----------------------------------------------------------+
+| [token.fenceAtIssuance]         | Number | The family fence the token was issued under. A value      |
+|                                 |        | below ``token.familyFence`` marks the token as stale.     |
++---------------------------------+--------+-----------------------------------------------------------+
+| [token.familyFence]             | Number | The family's current fence.                               |
++---------------------------------+--------+-----------------------------------------------------------+
+| [token.revocationState]         | String | ``'unreadable'`` makes the token fail as revoked.         |
++---------------------------------+--------+-----------------------------------------------------------+
+
+A token without any of these markers is treated as live, so models that do not
+implement token families keep working unchanged. Every revoked token is
+rejected with the same stable reason (``token_family_revoked``), whether it is
+an old token retried after a revocation or a newly derived one.
+
 **Remarks:**
 
 ::
@@ -281,6 +311,18 @@ An ``Object`` representing the refresh token and associated data.
 +-------------------------------+--------+----------------------------------------------------+
 
 ``token.client`` and ``token.user`` can carry additional properties that will be ignored by *oauth2-server*.
+
+**Revocation markers:**
+
+A refresh token returned by ``getRefreshToken()`` may carry the same revocation
+markers described for :ref:`Model#getAccessToken() <Model#getAccessToken>`.
+They are read immediately after the token is resolved and before any exchange
+step runs, so a revoked family can never be exchanged for a new token through
+this path. The marker is expected to live on the token (or its family) record
+itself - the same place the token is stored - rather than in a separate list.
+
+Because the check is repeated on every call, retrying a revoked refresh token
+always fails: no cached decision and no alternate code path can bypass it.
 
 **Remarks:**
 

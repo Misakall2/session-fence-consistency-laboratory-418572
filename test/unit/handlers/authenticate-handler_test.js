@@ -5,6 +5,7 @@
  */
 
 var AuthenticateHandler = require('../../../lib/handlers/authenticate-handler');
+var InvalidTokenError = require('../../../lib/errors/invalid-token-error');
 var Request = require('../../../lib/request');
 var sinon = require('sinon');
 var should = require('should');
@@ -128,6 +129,80 @@ describe('AuthenticateHandler', function() {
       }
       catch (err) {
         should.fail();
+      }
+    });
+
+    it('should reject a token marked as revoked even if it has not expired', function() {
+      var handler = new AuthenticateHandler({ model: { getAccessToken: function() {} } });
+
+      try {
+        handler.validateAccessToken({
+          user: {},
+          revoked: true,
+          accessTokenExpiresAt: new Date(new Date().getTime() + 10000)
+        });
+
+        should.fail();
+      } catch (err) {
+        err.should.be.an.instanceOf(InvalidTokenError);
+        err.reason.should.equal('token_family_revoked');
+      }
+    });
+
+    it('should reject a token whose family was revoked even if it has not expired', function() {
+      var handler = new AuthenticateHandler({ model: { getAccessToken: function() {} } });
+
+      try {
+        handler.validateAccessToken({
+          user: {},
+          familyRevoked: true,
+          accessTokenExpiresAt: new Date(new Date().getTime() + 10000)
+        });
+
+        should.fail();
+      } catch (err) {
+        err.reason.should.equal('token_family_revoked');
+      }
+    });
+
+    it('should reject a token issued under an older family fence', function() {
+      var handler = new AuthenticateHandler({ model: { getAccessToken: function() {} } });
+
+      try {
+        handler.validateAccessToken({
+          user: {},
+          fenceAtIssuance: 0,
+          familyFence: 1,
+          accessTokenExpiresAt: new Date(new Date().getTime() + 10000)
+        });
+
+        should.fail();
+      } catch (err) {
+        err.reason.should.equal('token_family_revoked');
+      }
+    });
+
+    it('should treat an unreadable revocation marker as revoked', function() {
+      var token = {
+        user: {},
+        accessTokenExpiresAt: new Date(new Date().getTime() + 10000)
+      };
+
+      Object.defineProperty(token, 'revoked', {
+        enumerable: true,
+        get: function() {
+          throw new Error('store unavailable');
+        }
+      });
+
+      var handler = new AuthenticateHandler({ model: { getAccessToken: function() {} } });
+
+      try {
+        handler.validateAccessToken(token);
+
+        should.fail();
+      } catch (err) {
+        err.reason.should.equal('token_family_revoked');
       }
     });
   });

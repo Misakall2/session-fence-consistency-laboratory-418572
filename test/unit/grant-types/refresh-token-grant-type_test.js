@@ -57,6 +57,81 @@ describe('RefreshTokenGrantType', function() {
         })
         .catch(should.fail);
     });
+
+    it('should reject a token marked as revoked', function() {
+      var model = {
+        getRefreshToken: sinon.stub().returns({ accessToken: 'foo', client: {}, revoked: true, user: {} }),
+        saveToken: function() {},
+        revokeToken: function() {}
+      };
+      var handler = new RefreshTokenGrantType({ accessTokenLifetime: 120, model: model });
+      var request = new Request({ body: { refresh_token: 'bar' }, headers: {}, method: {}, query: {} });
+
+      return handler.getRefreshToken(request, {id: undefined})
+        .then(should.fail)
+        .catch(function(e) {
+          e.name.should.equal('invalid_grant');
+          e.reason.should.equal('token_family_revoked');
+        });
+    });
+
+    it('should reject a token whose family was revoked', function() {
+      var model = {
+        getRefreshToken: sinon.stub().returns({ accessToken: 'foo', client: {}, familyRevoked: true, user: {} }),
+        saveToken: function() {},
+        revokeToken: function() {}
+      };
+      var handler = new RefreshTokenGrantType({ accessTokenLifetime: 120, model: model });
+      var request = new Request({ body: { refresh_token: 'bar' }, headers: {}, method: {}, query: {} });
+
+      return handler.getRefreshToken(request, {id: undefined})
+        .then(should.fail)
+        .catch(function(e) {
+          e.reason.should.equal('token_family_revoked');
+        });
+    });
+
+    it('should reject a token whose revocation marker cannot be read', function() {
+      var token = { accessToken: 'foo', client: {}, user: {} };
+
+      Object.defineProperty(token, 'revoked', {
+        enumerable: true,
+        get: function() {
+          throw new Error('store unavailable');
+        }
+      });
+
+      var model = {
+        getRefreshToken: sinon.stub().returns(token),
+        saveToken: function() {},
+        revokeToken: function() {}
+      };
+      var handler = new RefreshTokenGrantType({ accessTokenLifetime: 120, model: model });
+      var request = new Request({ body: { refresh_token: 'bar' }, headers: {}, method: {}, query: {} });
+
+      return handler.getRefreshToken(request, {id: undefined})
+        .then(should.fail)
+        .catch(function(e) {
+          e.reason.should.equal('token_family_revoked');
+        });
+    });
+
+    it('should not call `revokeToken()` or `saveToken()` when the marker is revoked', function() {
+      var model = {
+        getRefreshToken: sinon.stub().returns({ accessToken: 'foo', client: {}, revoked: true, user: {} }),
+        saveToken: sinon.stub(),
+        revokeToken: sinon.stub()
+      };
+      var handler = new RefreshTokenGrantType({ accessTokenLifetime: 120, model: model });
+      var request = new Request({ body: { refresh_token: 'bar' }, headers: {}, method: {}, query: {} });
+
+      return handler.handle(request, {id: undefined})
+        .then(should.fail)
+        .catch(function() {
+          model.revokeToken.callCount.should.equal(0);
+          model.saveToken.callCount.should.equal(0);
+        });
+    });
   });
 
   describe('revokeToken()', function() {
